@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 print("Start")
 # Define the source directory (SD card) and base destination directory
 source_dir = "/Volumes/Untitled/PRIVATE/M4ROOT/CLIP"
-base_dest_dir = "/Volumes/Dominos/Originales/SD/"
+base_dest_dir = "/Volumes/Crucial X8/original/"
 
 # Get list of all files in source directory
 files = os.listdir(source_dir)
