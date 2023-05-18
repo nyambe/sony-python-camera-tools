@@ -2,12 +2,20 @@ import os
 import shutil
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import time
 
-print("Start")
+# Get the current date and time
+now = datetime.now()
+
+# Format the date and time
+formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
+
+total_time = time.time()  # Start timer
+
 # Define the source directory (SD card) and base destination directory
 source_dir = "/Volumes/Untitled/PRIVATE/M4ROOT/CLIP"
-base_dest_dir = "/Volumes/Crucial X8/original/"
-
+base_dest_dir = "/Volumes/Crucial X8/original/erase"
+# base_dest_dir = "/Volumes/SamsungEvo/erase"
 # Get list of all files in source directory
 files = os.listdir(source_dir)
 print(f"Found {len(files)} files")
@@ -46,8 +54,14 @@ for file in video_files:
 
     # If the file doesn't already exist at the destination, copy it
     if not os.path.exists(dest_file_path):
+        print(f"Copying...: {file}")
+        start_time = time.time()  # Start timer
         shutil.copy(os.path.join(source_dir, file), dest_dir)
-        print(f"Copied: {file} to {date_subdir}")
+        end_time = time.time()  # End timer
+        time_taken = end_time - start_time
+        milliseconds = round(time_taken * 1000)  # Convert to milliseconds and round to nearest whole number
+        print(f"Copied: {file}")
+        print(f"Time taken to copy: {milliseconds} milliseconds")
         print(f"")
     else:
         print(f"Skipped: {file} (already exists at destination)")
@@ -132,6 +146,8 @@ for file in video_files:
         # If the text file doesn't already exist at the destination, create it
         if not os.path.exists(dest_txt_file_path):
             # Create a new text file and write the extracted values
+            print(f"")
+            print(f"Creating text file: {dest_txt_file_path}")
             with open(dest_txt_file_path, "w") as f:
                 f.write(f"File Name: {file}\n")
                 f.write(f"Duration: {duration}\n")
@@ -155,5 +171,14 @@ for file in video_files:
         else:
             print(f"Skipped creating text file: {dest_txt_file_path} (already exists)")
 
+total_time_end = time.time()  # Stop timer
+total_time_taken = total_time_end - total_time
+total_minutes, total_seconds = divmod(total_time_taken, 60)
+formatted_seconds = "{:.2f}".format(total_seconds)
 
-print("Finished")
+
+endnow = datetime.now()
+formatted_endnow = endnow.strftime("%H:%M:%S")
+print(f"Start {formatted_now} ")
+print(f"Finished {formatted_endnow}")
+print(f"Total time taken: {int(total_minutes)} minutes {formatted_seconds} seconds")
