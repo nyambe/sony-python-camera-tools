@@ -24,7 +24,7 @@ total_time = time.time()  # Start timer
 
 # Define the source directory (SD card) and base destination directory
 source_dir = "/Volumes/Untitled/PRIVATE/M4ROOT/CLIP"
-base_dest_dir = "/Volumes/SamsungEvo/original"
+base_dest_dir = "/Volumes/Crucial2/original"
 # base_dest_dir = "/Volumes/Dominos/Originales/actual"
 # base_dest_dir = "/Volumes/Crucial X8/original"
 # Get list of all files in source directory
