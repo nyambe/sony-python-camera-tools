@@ -28,7 +28,7 @@ print(f"Found {len(files)} files")
 video_files = [
     file
     for file in files
-    if (file.lower().startswith("vid_") or file.lower().startswith("pro_vid_"))
+    if (file.lower().startswith("vid_") or file.lower().startswith("pro_vid_")  or file.lower().startswith("lrv_") or file.lower().startswith("pro_lrv_")) 
     and file.lower().endswith(".mp4")
 ]
 
