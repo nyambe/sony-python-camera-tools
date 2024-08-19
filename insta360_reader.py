@@ -3,98 +3,124 @@ import shutil
 from datetime import datetime
 import time
 import argparse
+import logging
 
-# Parse command line arguments
-parser = argparse.ArgumentParser()
-args = parser.parse_args()
+def setup_logging():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Get the current date and time
-now = datetime.now()
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Insta360 video file organizer")
+    parser.add_argument("--source", default="/Volumes/Insta360GO3/DCIM/Camera01", help="Source directory")
+    return parser.parse_args()
 
-# Format the date and time
-formatted_now = now.strftime("%Y-%m-%d %H:%M:%S")
+def get_connected_volumes():
+    ignore_volumes = ["Insta360GO3", "Macintosh HD", ".timemachine", "Untitled"]
+    volumes = [
+        d for d in os.listdir('/Volumes') 
+        if os.path.isdir(os.path.join('/Volumes', d)) and d not in ignore_volumes
+    ]
+    return volumes
 
-total_time = time.time()  # Start timer
+def select_destination_volume():
+    volumes = get_connected_volumes()
+    print("Available volumes:")
+    for i, volume in enumerate(volumes, 1):
+        print(f"{i}. {volume}")
+    
+    while True:
+        try:
+            choice = int(input("Select the destination volume (enter the number): ")) - 1
+            if 0 <= choice < len(volumes):
+                selected_volume = os.path.join('/Volumes', volumes[choice])
+                insta360_dir = os.path.join(selected_volume, 'insta360')
+                
+                if not os.path.exists(insta360_dir):
+                    create = input(f"The 'insta360' directory doesn't exist on {volumes[choice]}. Create it? (y/n): ")
+                    if create.lower() == 'y':
+                        os.makedirs(insta360_dir)
+                        logging.info(f"Created 'insta360' directory on {volumes[choice]}")
+                    else:
+                        logging.info("Operation cancelled. Please select a different volume or create the 'insta360' directory manually.")
+                        return select_destination_volume()  # Recursively call the function to prompt again
+                
+                return insta360_dir
+            else:
+                print("Invalid choice. Please try again.")
+        except ValueError:
+            print("Please enter a valid number.")
 
-# Define the source directory (SD card) and base destination directory
-source_dir = "/Volumes/Insta360GO3/DCIM/Camera01"
-base_dest_dir = "/Volumes/Crucial3/original"
+def get_insta360_files(source_dir):
+    files = os.listdir(source_dir)
+    video_files = [
+        file for file in files
+        if (file.lower().startswith(("vid_", "pro_vid_", "lrv_", "pro_lrv_"))) 
+        and (file.lower().endswith(".mp4") or file.lower().endswith(".lrv"))
+    ]
+    return video_files
 
-# Get list of all files in source directory
-files = os.listdir(source_dir)
-print(f"Found {len(files)} files")
-
-# Filter video files that start with 'VID_'
-video_files = [
-    file
-    for file in files
-    if (file.lower().startswith("vid_") or file.lower().startswith("pro_vid_")  or file.lower().startswith("lrv_") or file.lower().startswith("pro_lrv_")) 
-    and file.lower().endswith(".mp4")
-]
-
-print(f"Found {len(video_files)} video files")
-
-# Sort files by date
-video_files.sort(key=lambda x: os.path.getmtime(os.path.join(source_dir, x)))
-
-# Copy sorted files to destination directory
-for file in video_files:
-    # Get the modification time and format it as yearmonthday
-    mod_time = os.path.getmtime(os.path.join(source_dir, file))
-    date_subdir = datetime.fromtimestamp(mod_time).strftime("%Y%m%d")
-
-    # Create a new destination directory with the formatted date
+def create_dest_directory(base_dest_dir, date_subdir):
     dest_dir = os.path.join(base_dest_dir, date_subdir)
-
-    # Create the directory if it doesn't exist
     if not os.path.exists(dest_dir):
-        os.makedirs(dest_dir)
-        print(f"")
-        print(f"------------------------------------------")
-        print(f"Created directory: {date_subdir}")
-        print(f"------------------------------------------")
-        print(f"")
+        try:
+            os.makedirs(dest_dir)
+            logging.info(f"Created directory: {dest_dir}")
+        except PermissionError:
+            logging.error(f"Permission denied: Unable to create directory {dest_dir}")
+            raise
+        except OSError as e:
+            logging.error(f"Failed to create directory {dest_dir}: {e}")
+            raise
+    return dest_dir
 
-    # Define the destination file path
-    dest_file_path = os.path.join(dest_dir, file)
+def copy_file(source_path, dest_path):
+    start_time = time.time()
+    shutil.copy2(source_path, dest_path)  # Use copy2 to preserve metadata
+    time_taken = time.time() - start_time
+    return time_taken
 
-    # If the file doesn't already exist at the destination, copy it
-    if not os.path.exists(dest_file_path):
-        print(f"Copying...: {file}")
-        start_time = time.time()  # Start timer
-        shutil.copy(os.path.join(source_dir, file), dest_dir)
-        end_time = time.time()  # End timer
-        time_taken = end_time - start_time
-        # Convert to milliseconds and round to nearest whole number
-        milliseconds = round(time_taken * 1000)
-        seconds = time_taken
-        minutes = time_taken / 60
+def log_copy_time(file, time_taken):
+    if time_taken > 120:
+        logging.info(f"Copied: {file}")
+        logging.info(f"Time taken to copy: {time_taken / 60:.2f} minutes")
+    elif time_taken > 2:
+        logging.info(f"Copied: {file}")
+        logging.info(f"Time taken to copy: {time_taken:.2f} seconds")
+    else:
+        logging.info(f"Copied: {file}")
+        logging.info(f"Time taken to copy: {time_taken * 1000:.0f} milliseconds")
 
-        # If time taken is more than 9000 milliseconds but less than 120 seconds
-        if milliseconds > 9000 and seconds <= 120:
-            print(f"Copied: {file}")
-            print(f"Time taken to copy: {round(seconds, 2)} seconds")
-            print(f"")
+def main():
+    setup_logging()
+    args = parse_arguments()
+    
+    dest_dir = select_destination_volume()
+    if not dest_dir:
+        logging.error("No valid destination directory selected. Exiting.")
+        return
+    
+    logging.info(f"Selected destination directory: {dest_dir}")
+    
+    start_time = time.time()
+    video_files = get_insta360_files(args.source)
+    logging.info(f"Found {len(video_files)} Insta360 video files to process")
 
-        # If time taken is more than 120 seconds
-        elif seconds > 120:
-            print(f"Copied: {file}")
-            print(f"Time taken to copy: {round(minutes, 2)} minutes")
-            print(f"")
+    for file in sorted(video_files, key=lambda x: os.path.getmtime(os.path.join(args.source, x))):
+        source_path = os.path.join(args.source, file)
+        mod_time = os.path.getmtime(source_path)
+        date_subdir = datetime.fromtimestamp(mod_time).strftime("%Y%m%d")
+        full_dest_dir = create_dest_directory(dest_dir, date_subdir)
+        dest_path = os.path.join(full_dest_dir, file)
 
-        # If time taken is less than or equal to 9000 milliseconds
-        else:
-            print(f"Copied: {file}")
-            print(f"Time taken to copy: {milliseconds} milliseconds")
-            print(f"")
+        if not os.path.exists(dest_path):
+            try:
+                time_taken = copy_file(source_path, dest_path)
+                log_copy_time(file, time_taken)
+            except IOError as e:
+                logging.error(f"Failed to copy {file}: {e}")
+                continue
 
-total_time_end = time.time()  # Stop timer
-total_time_taken = total_time_end - total_time
-total_minutes, total_seconds = divmod(total_time_taken, 60)
-formatted_seconds = "{:.2f}".format(total_seconds)
+    total_time = time.time() - start_time
+    logging.info(f"Total time taken: {int(total_time // 60)} minutes {total_time % 60:.2f} seconds")
 
-endnow = datetime.now()
-formatted_endnow = endnow.strftime("%H:%M:%S")
-print(f"Start {formatted_now} ")
-print(f"Finished {formatted_endnow}")
-print(f"Total time taken: {int(total_minutes)} minutes {formatted_seconds} seconds")
+if __name__ == "__main__":
+    main()

@@ -16,12 +16,16 @@ def parse_arguments():
     return parser.parse_args()
 
 def get_connected_volumes():
-    volumes = [d for d in os.listdir('/Volumes') if os.path.isdir(os.path.join('/Volumes', d))]
+    ignore_volumes = ["Insta360GO3", "Macintosh HD", ".timemachine", "Untitled"]
+    volumes = [
+        d for d in os.listdir('/Volumes') 
+        if os.path.isdir(os.path.join('/Volumes', d)) and d not in ignore_volumes
+    ]
     return volumes
 
 def select_destination_volume():
     volumes = get_connected_volumes()
-    print("Available volumes:")
+    print("Available destination volumes:")
     for i, volume in enumerate(volumes, 1):
         print(f"{i}. {volume}")
     
